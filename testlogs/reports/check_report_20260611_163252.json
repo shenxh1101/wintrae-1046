@@ -1,0 +1,175 @@
+{
+  "check_timestamp": "2026-06-11 16:32:52",
+  "directory": "d:\\TraeProjects\\1046\\testlogs",
+  "pattern": "check.log",
+  "files_scanned": 1,
+  "period": {
+    "current_start": "2026-06-10 10:00:00",
+    "current_end": "2026-06-10 12:00:00",
+    "compare_start": "2026-06-10 08:00:00",
+    "compare_end": "2026-06-10 10:00:00"
+  },
+  "summary": {
+    "total_entries": 11,
+    "error_count": 8,
+    "warning_count": 1,
+    "compare_error_count": 6,
+    "error_delta": 2,
+    "error_change": "+33.3%"
+  },
+  "level_distribution": {
+    "INFO": 2,
+    "ERROR": 7,
+    "WARN": 1,
+    "FATAL": 1
+  },
+  "error_code_ranking": [
+    {
+      "code": "504",
+      "count": 3
+    },
+    {
+      "code": "507",
+      "count": 2
+    },
+    {
+      "code": "503",
+      "count": 2
+    },
+    {
+      "code": "400",
+      "count": 1
+    }
+  ],
+  "alert_summary": {
+    "group_by": "service,host,code",
+    "total_errors": 8,
+    "distinct_groups": 5,
+    "top_items": [
+      {
+        "service": "gateway-service",
+        "host": "gw-01",
+        "errorcode": "504",
+        "count": 3
+      },
+      {
+        "service": "message-service",
+        "host": "msg-01",
+        "errorcode": "503",
+        "count": 2
+      },
+      {
+        "service": "storage-service",
+        "host": "store-01",
+        "errorcode": "507",
+        "count": 1
+      },
+      {
+        "service": "storage-service",
+        "host": "store-02",
+        "errorcode": "507",
+        "count": 1
+      },
+      {
+        "service": "config-service",
+        "host": "cfg-01",
+        "errorcode": "400",
+        "count": 1
+      }
+    ],
+    "_meta": {
+      "total_entries": 11,
+      "timestamped_entries": 11
+    }
+  },
+  "spike_windows": [
+    {
+      "time": "2026-06-10 10:00",
+      "count": 5,
+      "is_spike": false
+    },
+    {
+      "time": "2026-06-10 11:00",
+      "count": 3,
+      "is_spike": false
+    }
+  ],
+  "baseline_comparison": {
+    "baseline_available": true,
+    "new_items": [
+      {
+        "service": "gateway-service",
+        "host": "gw-01",
+        "code": "-",
+        "count": 3
+      },
+      {
+        "service": "message-service",
+        "host": "msg-01",
+        "code": "-",
+        "count": 2
+      },
+      {
+        "service": "storage-service",
+        "host": "store-02",
+        "code": "-",
+        "count": 1
+      },
+      {
+        "service": "config-service",
+        "host": "cfg-01",
+        "code": "-",
+        "count": 1
+      }
+    ],
+    "top_growth": [
+      {
+        "service": "gateway-service",
+        "host": "gw-01",
+        "code": "-",
+        "baseline_count": 0,
+        "current_count": 3,
+        "delta": 3,
+        "growth_rate": null
+      },
+      {
+        "service": "message-service",
+        "host": "msg-01",
+        "code": "-",
+        "baseline_count": 0,
+        "current_count": 2,
+        "delta": 2,
+        "growth_rate": null
+      },
+      {
+        "service": "storage-service",
+        "host": "store-02",
+        "code": "-",
+        "baseline_count": 0,
+        "current_count": 1,
+        "delta": 1,
+        "growth_rate": null
+      },
+      {
+        "service": "config-service",
+        "host": "cfg-01",
+        "code": "-",
+        "baseline_count": 0,
+        "current_count": 1,
+        "delta": 1,
+        "growth_rate": null
+      },
+      {
+        "service": "storage-service",
+        "host": "store-01",
+        "code": "-",
+        "baseline_count": 1,
+        "current_count": 1,
+        "delta": 0,
+        "growth_rate": 0.0
+      }
+    ],
+    "top_decline": [],
+    "disappeared_count": 5
+  }
+}
