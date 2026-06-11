@@ -1,12 +1,21 @@
 {
+  "check_timestamp": "2026-06-11 16:52:00",
   "directory": "d:\\TraeProjects\\1046\\testlogs",
+  "pattern": "*.log",
   "files_scanned": 2,
-  "total_entries": 31,
-  "time_range": {
-    "start": "2026-06-10 08:00:00",
-    "end": "2026-06-10 10:00:00",
-    "included_no_ts": false,
-    "excluded_no_ts_count": 6
+  "period": {
+    "current_start": "2026-06-10 08:00:00",
+    "current_end": "2026-06-10 10:00:00",
+    "compare_start": "2026-06-10 06:00:00",
+    "compare_end": "2026-06-10 08:00:00"
+  },
+  "summary": {
+    "total_entries": 31,
+    "error_count": 14,
+    "warning_count": 5,
+    "compare_error_count": 0,
+    "error_delta": 14,
+    "error_change": "+NEW"
   },
   "level_distribution": {
     "INFO": 12,
@@ -78,5 +87,22 @@
       "total_entries": 31,
       "timestamped_entries": 31
     }
-  }
+  },
+  "spike_windows": [
+    {
+      "time": "2026-06-10 08:00",
+      "count": 8,
+      "is_spike": false
+    },
+    {
+      "time": "2026-06-10 09:00",
+      "count": 5,
+      "is_spike": false
+    },
+    {
+      "time": "2026-06-10 10:00",
+      "count": 1,
+      "is_spike": false
+    }
+  ]
 }

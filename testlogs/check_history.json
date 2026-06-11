@@ -1,0 +1,145 @@
+[
+  {
+    "timestamp": "2026-06-11 16:51:42",
+    "date": "2026-06-11",
+    "status": "WARN",
+    "directory": "d:\\TraeProjects\\1046\\testlogs",
+    "pattern": "check.log",
+    "period_start": "2026-06-10 10:00:00",
+    "period_end": "2026-06-10 12:00:00",
+    "total_entries": 11,
+    "error_count": 8,
+    "warning_count": 1,
+    "error_delta": 2,
+    "error_change": "+33.3%",
+    "new_alerts": 4,
+    "top_growth_count": 4,
+    "spike_count": 0,
+    "services": [
+      "config-service",
+      "gateway-service",
+      "message-service",
+      "order-service",
+      "storage-service"
+    ],
+    "error_codes": [
+      "400",
+      "503",
+      "504",
+      "507"
+    ],
+    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165142.json",
+    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165142.md",
+    "reasons": [
+      "Errors increased by 2",
+      "4 new alert combinations"
+    ]
+  },
+  {
+    "timestamp": "2026-06-11 16:52:00",
+    "date": "2026-06-11",
+    "status": "WARN",
+    "directory": "d:\\TraeProjects\\1046\\testlogs",
+    "pattern": "*.log",
+    "period_start": "2026-06-10 08:00:00",
+    "period_end": "2026-06-10 10:00:00",
+    "total_entries": 31,
+    "error_count": 14,
+    "warning_count": 5,
+    "error_delta": 14,
+    "error_change": "+NEW",
+    "new_alerts": 0,
+    "top_growth_count": 0,
+    "spike_count": 0,
+    "services": [
+      "auth-service",
+      "order-service",
+      "payment-service",
+      "storage-service",
+      "user-service"
+    ],
+    "error_codes": [
+      "401",
+      "500",
+      "503",
+      "507"
+    ],
+    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165200.json",
+    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165200.md",
+    "reasons": [
+      "Errors increased by 14"
+    ]
+  },
+  {
+    "timestamp": "2026-06-11 16:52:52",
+    "date": "2026-06-11",
+    "status": "WARN",
+    "directory": "d:\\TraeProjects\\1046\\testlogs",
+    "pattern": "*.log",
+    "period_start": "2026-06-10 09:00:00",
+    "period_end": "2026-06-10 12:00:00",
+    "total_entries": 19,
+    "error_count": 14,
+    "warning_count": 5,
+    "error_delta": 6,
+    "error_change": "+75.0%",
+    "new_alerts": 0,
+    "top_growth_count": 0,
+    "spike_count": 0,
+    "services": [
+      "auth-service",
+      "config-service",
+      "gateway-service",
+      "message-service",
+      "order-service",
+      "storage-service"
+    ],
+    "error_codes": [
+      "400",
+      "401",
+      "503",
+      "504",
+      "507"
+    ],
+    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165252.json",
+    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165252.md",
+    "reasons": [
+      "Errors increased by 6"
+    ]
+  },
+  {
+    "timestamp": "2026-06-11 16:53:25",
+    "date": "2026-06-11",
+    "status": "WARN",
+    "directory": "d:\\TraeProjects\\1046\\testlogs",
+    "pattern": "*.log",
+    "period_start": "2026-06-10 10:00:00",
+    "period_end": "2026-06-10 12:00:00",
+    "total_entries": 15,
+    "error_count": 12,
+    "warning_count": 3,
+    "error_delta": 1,
+    "error_change": "+9.1%",
+    "new_alerts": 0,
+    "top_growth_count": 0,
+    "spike_count": 0,
+    "services": [
+      "config-service",
+      "gateway-service",
+      "message-service",
+      "order-service",
+      "storage-service"
+    ],
+    "error_codes": [
+      "400",
+      "503",
+      "504",
+      "507"
+    ],
+    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165325.json",
+    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165325.md",
+    "reasons": [
+      "Errors increased by 1"
+    ]
+  }
+]

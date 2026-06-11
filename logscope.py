@@ -11,8 +11,9 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 DEFAULT_RULES_FILE = os.path.join(str(Path.home()), ".logscope_rules.json")
+DEFAULT_HISTORY_FILE = os.path.join(str(Path.home()), ".logscope_history.json")
 
 TIMESTAMP_PATTERNS = [
     r'(\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}:\d{2}(?:\.\d+)?)',
@@ -325,6 +326,29 @@ def confirm_prompt(message):
         return False
 
 
+def load_history(path=None):
+    path = path or DEFAULT_HISTORY_FILE
+    if os.path.exists(path):
+        try:
+            with open(path, encoding='utf-8') as fh:
+                return json.load(fh)
+        except (json.JSONDecodeError, OSError):
+            return []
+    return []
+
+
+def save_history(records, path=None):
+    path = path or DEFAULT_HISTORY_FILE
+    with open(path, 'w', encoding='utf-8') as fh:
+        json.dump(records, fh, indent=2, ensure_ascii=False)
+
+
+def append_check_history(record, path=None):
+    records = load_history(path)
+    records.append(record)
+    save_history(records, path)
+
+
 def build_alert_summary(entries, group_by='service,code', top_n=10,
                         levels=None):
     if levels is None:
@@ -380,17 +404,26 @@ def build_alert_summary(entries, group_by='service,code', top_n=10,
 
 
 def alert_summary_to_json(alert_summary, entries=None):
+    group_keys = [g.strip().lower() for g in alert_summary['group_by'].split(',')]
+    key_name_map = {
+        'code': 'code', 'error_code': 'code', 'errcode': 'code',
+        'service': 'service', 'svc': 'service', 'app': 'service',
+        'host': 'host', 'hostname': 'host', 'server': 'host',
+        'level': 'level', 'lvl': 'level',
+        'trace': 'trace_id', 'trace_id': 'trace_id',
+    }
+    canonical_keys = [key_name_map.get(g, g) for g in group_keys]
+
     data = {
         'group_by': alert_summary['group_by'],
         'total_errors': alert_summary['total'],
         'distinct_groups': alert_summary['groups'],
         'top_items': []
     }
-    headers = [h.lower() for h in alert_summary['headers']]
     for row in alert_summary['rows']:
         item = {}
-        for i, h in enumerate(headers[:-1]):
-            item[h] = row[i]
+        for i, ck in enumerate(canonical_keys):
+            item[ck] = row[i]
         item['count'] = int(row[-1])
         data['top_items'].append(item)
 
@@ -427,22 +460,44 @@ def compare_alert_baseline(current_alert_json, baseline_data, top_n=10):
     baseline = baseline_data['alert_summary']
     current = current_alert_json
 
+    group_keys = [g.strip().lower() for g in current.get('group_by', 'service,code').split(',')]
+    key_name_map = {
+        'code': 'code', 'error_code': 'code', 'errcode': 'code',
+        'service': 'service', 'svc': 'service', 'app': 'service',
+        'host': 'host', 'hostname': 'host', 'server': 'host',
+        'level': 'level', 'lvl': 'level',
+        'trace': 'trace_id', 'trace_id': 'trace_id',
+    }
+    canonical_keys = [key_name_map.get(g, g) for g in group_keys]
+
+    key_alias_map = {
+        'code': ['code', 'error_code', 'errorcode', 'errcode'],
+        'service': ['service', 'svc', 'app'],
+        'host': ['host', 'hostname', 'server'],
+        'level': ['level', 'lvl'],
+        'trace_id': ['trace_id', 'traceid', 'trace'],
+    }
+
+    def make_key(item):
+        parts = []
+        for ck in canonical_keys:
+            val = None
+            aliases = key_alias_map.get(ck, [ck])
+            for alias in aliases:
+                if alias in item:
+                    val = item[alias]
+                    break
+            parts.append(str(val if val is not None else '-'))
+        return tuple(parts)
+
     baseline_items = {}
     for item in baseline.get('top_items', []):
-        key_parts = []
-        for k in sorted(item.keys()):
-            if k != 'count':
-                key_parts.append(str(item[k]))
-        key = tuple(key_parts)
+        key = make_key(item)
         baseline_items[key] = item.get('count', 0)
 
     current_items = {}
     for item in current.get('top_items', []):
-        key_parts = []
-        for k in sorted(item.keys()):
-            if k != 'count':
-                key_parts.append(str(item[k]))
-        key = tuple(key_parts)
+        key = make_key(item)
         current_items[key] = (item, item.get('count', 0))
 
     new_items = []
@@ -458,15 +513,10 @@ def compare_alert_baseline(current_alert_json, baseline_data, top_n=10):
     growth_items = []
     for key, (item, cur_cnt) in current_items.items():
         base_cnt = baseline_items.get(key, 0)
-        if base_cnt > 0:
-            delta = cur_cnt - base_cnt
-            rate = (delta / base_cnt) * 100
-        elif cur_cnt > 0:
-            delta = cur_cnt
-            rate = float('inf')
-        else:
-            continue
-        growth_items.append((item, base_cnt, cur_cnt, delta, rate))
+        delta = cur_cnt - base_cnt
+        if delta > 0:
+            rate = (delta / base_cnt * 100) if base_cnt > 0 else float('inf')
+            growth_items.append((item, base_cnt, cur_cnt, delta, rate))
 
     growth_items.sort(key=lambda x: (-x[4], -x[3]))
     top_growth = growth_items[:top_n]
@@ -489,12 +539,27 @@ def compare_alert_baseline(current_alert_json, baseline_data, top_n=10):
         'top_growth': top_growth,
         'top_decline': top_decline,
         'baseline_available': True,
+        'canonical_keys': canonical_keys,
     }
+
+
+def _item_get(item, canonical_key):
+    key_alias_map = {
+        'code': ['code', 'error_code', 'errorcode', 'errcode'],
+        'service': ['service', 'svc', 'app'],
+        'host': ['host', 'hostname', 'server'],
+        'level': ['level', 'lvl'],
+        'trace_id': ['trace_id', 'traceid', 'trace'],
+    }
+    aliases = key_alias_map.get(canonical_key, [canonical_key])
+    for alias in aliases:
+        if alias in item:
+            return str(item[alias])
+    return '-'
 
 
 def format_baseline_comparison(comparison, group_by):
     lines = []
-    headers = [h.strip().lower() for h in group_by.split(',')]
     header_map = {
         'code': 'ErrorCode', 'error_code': 'ErrorCode', 'errcode': 'ErrorCode',
         'service': 'Service', 'svc': 'Service', 'app': 'Service',
@@ -502,7 +567,10 @@ def format_baseline_comparison(comparison, group_by):
         'level': 'Level', 'lvl': 'Level',
         'trace': 'TraceID', 'trace_id': 'TraceID',
     }
-    display_headers = [header_map.get(h, h) for h in headers]
+
+    canonical_keys = comparison.get('canonical_keys',
+                                    [g.strip().lower() for g in group_by.split(',')])
+    display_headers = [header_map.get(ck, ck) for ck in canonical_keys]
 
     if not comparison['baseline_available']:
         return "[Baseline comparison skipped - no valid baseline file provided]\n"
@@ -512,9 +580,7 @@ def format_baseline_comparison(comparison, group_by):
         headers_t = display_headers + ['Current Count']
         rows = []
         for item, cnt in comparison['new_items']:
-            row = []
-            for h in headers:
-                row.append(str(item.get(h, '-')))
+            row = [_item_get(item, ck) for ck in canonical_keys]
             row.append(str(cnt))
             rows.append(row)
         lines.append(format_table(headers_t, rows))
@@ -526,9 +592,7 @@ def format_baseline_comparison(comparison, group_by):
         headers_t = display_headers + ['Baseline', 'Current', 'Delta', 'Growth%']
         rows = []
         for item, base_cnt, cur_cnt, delta, rate in comparison['top_growth']:
-            row = []
-            for h in headers:
-                row.append(str(item.get(h, '-')))
+            row = [_item_get(item, ck) for ck in canonical_keys]
             rate_str = 'INF%' if rate == float('inf') else f'{rate:+.1f}%'
             rows.append(row + [str(base_cnt), str(cur_cnt), f'{delta:+d}', rate_str])
         lines.append(format_table(headers_t, rows))
@@ -539,9 +603,7 @@ def format_baseline_comparison(comparison, group_by):
         headers_t = display_headers + ['Baseline', 'Current', 'Delta', 'Decline%']
         rows = []
         for item, base_cnt, cur_cnt, delta, rate in comparison['top_decline']:
-            row = []
-            for h in headers:
-                row.append(str(item.get(h, '-')))
+            row = [_item_get(item, ck) for ck in canonical_keys]
             rows.append(row + [str(base_cnt), str(cur_cnt), f'{delta:+d}', f'{rate:.1f}%'])
         lines.append(format_table(headers_t, rows))
         lines.append('')
@@ -558,7 +620,8 @@ def format_baseline_comparison(comparison, group_by):
 
 
 def baseline_comparison_to_json(comparison, group_by):
-    headers = [h.strip().lower() for h in group_by.split(',')]
+    canonical_keys = comparison.get('canonical_keys',
+                                    [g.strip().lower() for g in group_by.split(',')])
     data = {
         'baseline_available': comparison['baseline_available'],
         'new_items': [],
@@ -567,16 +630,12 @@ def baseline_comparison_to_json(comparison, group_by):
         'disappeared_count': len(comparison['disappeared_items']),
     }
     for item, cnt in comparison['new_items']:
-        entry = {}
-        for h in headers:
-            entry[h] = str(item.get(h, '-'))
+        entry = {ck: _item_get(item, ck) for ck in canonical_keys}
         entry['count'] = cnt
         data['new_items'].append(entry)
 
     for item, base_cnt, cur_cnt, delta, rate in comparison['top_growth']:
-        entry = {}
-        for h in headers:
-            entry[h] = str(item.get(h, '-'))
+        entry = {ck: _item_get(item, ck) for ck in canonical_keys}
         entry.update({
             'baseline_count': base_cnt,
             'current_count': cur_cnt,
@@ -586,9 +645,7 @@ def baseline_comparison_to_json(comparison, group_by):
         data['top_growth'].append(entry)
 
     for item, base_cnt, cur_cnt, delta, rate in comparison['top_decline']:
-        entry = {}
-        for h in headers:
-            entry[h] = str(item.get(h, '-'))
+        entry = {ck: _item_get(item, ck) for ck in canonical_keys}
         entry.update({
             'baseline_count': base_cnt,
             'current_count': cur_cnt,
@@ -1128,20 +1185,27 @@ def cmd_report(args):
                 alert_json = alert_summary_to_json(alert, entries)
                 comparison = compare_alert_baseline(alert_json, baseline_data, top_n=alert_top)
                 if comparison['baseline_available']:
+                    canonical_keys = comparison.get('canonical_keys',
+                                                    [g.strip().lower() for g in alert_group_by.split(',')])
+                    header_map = {
+                        'code': 'ErrorCode', 'error_code': 'ErrorCode', 'errcode': 'ErrorCode',
+                        'service': 'Service', 'svc': 'Service', 'app': 'Service',
+                        'host': 'Host', 'hostname': 'Host', 'server': 'Host',
+                        'level': 'Level', 'lvl': 'Level',
+                        'trace': 'TraceID', 'trace_id': 'TraceID',
+                    }
+                    display_headers = [header_map.get(ck, ck) for ck in canonical_keys]
                     lines.append('')
                     lines.append('## Baseline Comparison')
                     lines.append('')
                     if comparison['new_items']:
                         lines.append('### New Alert Combinations (not in baseline)')
                         lines.append('')
-                        headers_t = alert['headers']
+                        headers_t = display_headers + ['Count']
                         lines.append('| ' + ' | '.join(headers_t) + ' |')
                         lines.append('|' + '|'.join('---' for _ in headers_t) + '|')
                         for item, cnt in comparison['new_items']:
-                            row = []
-                            for h in alert['headers'][:-1]:
-                                h_lower = h.lower()
-                                row.append(str(item.get(h_lower, '-')))
+                            row = [str(_item_get(item, ck)) for ck in canonical_keys]
                             row.append(str(cnt))
                             lines.append('| ' + ' | '.join(row) + ' |')
                         lines.append(f'\nTotal new combinations: **{len(comparison["new_items"])}**')
@@ -1150,14 +1214,11 @@ def cmd_report(args):
                     if comparison['top_growth']:
                         lines.append('### Top Growth Alert Combinations')
                         lines.append('')
-                        headers_t = alert['headers'][:-1] + ['Baseline', 'Current', 'Delta', 'Growth%']
+                        headers_t = display_headers + ['Baseline', 'Current', 'Delta', 'Growth%']
                         lines.append('| ' + ' | '.join(headers_t) + ' |')
                         lines.append('|' + '|'.join('---' for _ in headers_t) + '|')
                         for item, base_cnt, cur_cnt, delta, rate in comparison['top_growth']:
-                            row = []
-                            for h in alert['headers'][:-1]:
-                                h_lower = h.lower()
-                                row.append(str(item.get(h_lower, '-')))
+                            row = [str(_item_get(item, ck)) for ck in canonical_keys]
                             rate_str = 'INF%' if rate == float('inf') else f'{rate:+.1f}%'
                             row += [str(base_cnt), str(cur_cnt), f'{delta:+d}', rate_str]
                             lines.append('| ' + ' | '.join(row) + ' |')
@@ -1166,14 +1227,11 @@ def cmd_report(args):
                     if comparison['top_decline']:
                         lines.append('### Top Decline Alert Combinations')
                         lines.append('')
-                        headers_t = alert['headers'][:-1] + ['Baseline', 'Current', 'Delta', 'Decline%']
+                        headers_t = display_headers + ['Baseline', 'Current', 'Delta', 'Decline%']
                         lines.append('| ' + ' | '.join(headers_t) + ' |')
                         lines.append('|' + '|'.join('---' for _ in headers_t) + '|')
                         for item, base_cnt, cur_cnt, delta, rate in comparison['top_decline']:
-                            row = []
-                            for h in alert['headers'][:-1]:
-                                h_lower = h.lower()
-                                row.append(str(item.get(h_lower, '-')))
+                            row = [str(_item_get(item, ck)) for ck in canonical_keys]
                             row += [str(base_cnt), str(cur_cnt), f'{delta:+d}', f'{rate:.1f}%']
                             lines.append('| ' + ' | '.join(row) + ' |')
                         lines.append('')
@@ -1294,9 +1352,108 @@ def cmd_delete_rule(args):
     print(f"Rule '{name}' deleted.")
 
 
+def cmd_history(args):
+    history_path = getattr(args, 'history', None) or DEFAULT_HISTORY_FILE
+    records = load_history(history_path)
+    if not records:
+        print(f"No check history found in {history_path}")
+        return
+
+    status_filter = getattr(args, 'status', None)
+    service_filter = getattr(args, 'service', None)
+    code_filter = getattr(args, 'error_code', None)
+    last_n = getattr(args, 'last', None)
+    json_output = getattr(args, 'json', False)
+
+    filtered = records
+    if status_filter:
+        status_filter = status_filter.upper()
+        filtered = [r for r in filtered if r.get('status', '').upper() == status_filter]
+    if service_filter:
+        service_lower = service_filter.lower()
+        filtered = [r for r in filtered
+                    if any(s.lower() == service_lower for s in r.get('services', []))]
+    if code_filter:
+        filtered = [r for r in filtered if code_filter in r.get('error_codes', [])]
+
+    if last_n and last_n > 0:
+        filtered = filtered[-last_n:]
+
+    if not filtered:
+        print("No matching records found.")
+        return
+
+    if json_output:
+        data = {
+            'total_records': len(filtered),
+            'history_file': history_path,
+            'records': filtered,
+        }
+        output_path = getattr(args, 'output', None)
+        if output_path:
+            with open(output_path, 'w', encoding='utf-8') as fh:
+                json.dump(data, fh, indent=2, ensure_ascii=False)
+            print(f"History JSON saved to {output_path}")
+        else:
+            print(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    print(f"Check History ({len(filtered)} records from {history_path})")
+    print()
+
+    headers = ['#', 'Timestamp', 'Status', 'Errors', 'Delta', 'New', 'Svc', 'Codes', 'Report']
+    rows = []
+    for i, r in enumerate(filtered, 1):
+        svc_count = len(r.get('services', []))
+        codes_str = ','.join(r.get('error_codes', [])[:3])
+        if len(r.get('error_codes', [])) > 3:
+            codes_str += '...'
+        report_name = os.path.basename(r.get('json_report', '-'))
+        rows.append([
+            str(i),
+            r.get('timestamp', '-'),
+            r.get('status', '-'),
+            str(r.get('error_count', 0)),
+            f"{r.get('error_delta', 0):+d}",
+            str(r.get('new_alerts', 0)),
+            str(svc_count),
+            codes_str or '-',
+            report_name,
+        ])
+    print(format_table(headers, rows))
+
+    if getattr(args, 'trend', False) and len(filtered) >= 2:
+        print("\n=== Error Trend ===")
+        trend_headers = ['Timestamp', 'Errors', 'Delta', 'Change', 'New Alerts', 'Spikes']
+        trend_rows = []
+        for r in filtered:
+            trend_rows.append([
+                r.get('timestamp', '-'),
+                str(r.get('error_count', 0)),
+                f"{r.get('error_delta', 0):+d}",
+                r.get('error_change', '0%'),
+                str(r.get('new_alerts', 0)),
+                str(r.get('spike_count', 0)),
+            ])
+        print(format_table(trend_headers, trend_rows))
+
+        if len(filtered) >= 3:
+            errors_list = [r.get('error_count', 0) for r in filtered]
+            avg_err = sum(errors_list) / len(errors_list)
+            max_err = max(errors_list)
+            min_err = min(errors_list)
+            new_alerts_list = [r.get('new_alerts', 0) for r in filtered]
+            total_new = sum(new_alerts_list)
+            warn_count = sum(1 for r in filtered if r.get('status', '') == 'WARN')
+            ok_count = sum(1 for r in filtered if r.get('status', '') == 'OK')
+            print(f"\nStats across {len(filtered)} checks:")
+            print(f"  Errors   : avg={avg_err:.1f}, min={min_err}, max={max_err}")
+            print(f"  Status   : {ok_count} OK, {warn_count} WARN")
+            print(f"  New alerts total: {total_new}")
+
+
 def cmd_check(args):
     directory = args.directory
-    pattern = getattr(args, 'pattern', '*.log')
     now = datetime.now()
 
     rules_path = args.rules if getattr(args, 'rules', None) else DEFAULT_RULES_FILE
@@ -1305,7 +1462,8 @@ def cmd_check(args):
     if getattr(args, 'use_rule', None) and args.use_rule in rules:
         apply_rule_to_args(args, rules[args.use_rule])
 
-    period = getattr(args, 'period', '-1h')
+    pattern = getattr(args, 'pattern', None) or '*.log'
+    period = getattr(args, 'period', None) or '-1h'
     compare_with = getattr(args, 'compare_with', None)
 
     def parse_relative(rel_str, base_time):
@@ -1538,18 +1696,23 @@ def cmd_check(args):
     md_lines.append('')
 
     if comparison and comparison['baseline_available']:
+        canonical_keys = comparison.get('canonical_keys',
+                                        [g.strip().lower() for g in alert_group_by.split(',')])
+        ck_header_map = {
+            'code': 'ErrorCode', 'service': 'Service', 'host': 'Host',
+            'level': 'Level', 'trace_id': 'TraceID',
+        }
+        ck_display = [ck_header_map.get(ck, ck) for ck in canonical_keys]
         md_lines.append('## Baseline Comparison')
         md_lines.append('')
         if comparison['new_items']:
             md_lines.append('### New Alert Combinations (not in baseline)')
             md_lines.append('')
-            md_lines.append('| ' + ' | '.join(alert['headers']) + ' |')
-            md_lines.append('|' + '|'.join('---' for _ in alert['headers']) + '|')
+            headers_t = ck_display + ['Count']
+            md_lines.append('| ' + ' | '.join(headers_t) + ' |')
+            md_lines.append('|' + '|'.join('---' for _ in headers_t) + '|')
             for item, cnt in comparison['new_items']:
-                row = []
-                for h in alert['headers'][:-1]:
-                    h_lower = h.lower()
-                    row.append(str(item.get(h_lower, '-')))
+                row = [str(_item_get(item, ck)) for ck in canonical_keys]
                 row.append(str(cnt))
                 md_lines.append('| ' + ' | '.join(row) + ' |')
             md_lines.append(f'\nTotal new combinations: **{len(comparison["new_items"])}**')
@@ -1558,14 +1721,11 @@ def cmd_check(args):
         if comparison['top_growth']:
             md_lines.append('### Top Growth Alert Combinations')
             md_lines.append('')
-            headers_t = alert['headers'][:-1] + ['Baseline', 'Current', 'Delta', 'Growth%']
+            headers_t = ck_display + ['Baseline', 'Current', 'Delta', 'Growth%']
             md_lines.append('| ' + ' | '.join(headers_t) + ' |')
             md_lines.append('|' + '|'.join('---' for _ in headers_t) + '|')
             for item, base_cnt, cur_cnt, delta, rate in comparison['top_growth']:
-                row = []
-                for h in alert['headers'][:-1]:
-                    h_lower = h.lower()
-                    row.append(str(item.get(h_lower, '-')))
+                row = [str(_item_get(item, ck)) for ck in canonical_keys]
                 rate_str = 'INF%' if rate == float('inf') else f'{rate:+.1f}%'
                 row += [str(base_cnt), str(cur_cnt), f'{delta:+d}', rate_str]
                 md_lines.append('| ' + ' | '.join(row) + ' |')
@@ -1627,6 +1787,33 @@ def cmd_check(args):
     print(f"Markdown Report : {md_report_path}")
     print("=" * 60)
 
+    history_record = {
+        'timestamp': now.strftime('%Y-%m-%d %H:%M:%S'),
+        'date': now.strftime('%Y-%m-%d'),
+        'status': status,
+        'directory': directory,
+        'pattern': pattern,
+        'period_start': start_time.strftime('%Y-%m-%d %H:%M:%S'),
+        'period_end': end_time.strftime('%Y-%m-%d %H:%M:%S'),
+        'total_entries': total_entries,
+        'error_count': error_count,
+        'warning_count': warn_count,
+        'error_delta': error_delta,
+        'error_change': error_change,
+        'new_alerts': len(comparison['new_items']) if comparison and comparison.get('baseline_available') else 0,
+        'top_growth_count': len(comparison['top_growth']) if comparison and comparison.get('baseline_available') else 0,
+        'spike_count': sum(1 for s in spike_windows if s['is_spike']),
+        'services': sorted(set(e.service for e in current_entries if e.service)),
+        'error_codes': sorted(set(e.error_code for e in current_entries if e.error_code)),
+        'json_report': json_report_path,
+        'md_report': md_report_path,
+    }
+    if status_reasons:
+        history_record['reasons'] = status_reasons
+
+    history_path = getattr(args, 'history', None) or DEFAULT_HISTORY_FILE
+    append_check_history(history_record, history_path)
+
     if status != 'OK':
         sys.exit(2)
 
@@ -1643,17 +1830,17 @@ def build_parser():
     # --- check ---
     p_check = sub.add_parser('check', help='Run full inspection pipeline (scan/stat/diff/report)')
     p_check.add_argument('directory', help='Log directory or file path')
-    p_check.add_argument('--pattern', default='*.log', help='File glob pattern (default: *.log)')
-    p_check.add_argument('--period', default='-1h',
+    p_check.add_argument('--pattern', default=None, help='File glob pattern (default: *.log)')
+    p_check.add_argument('--period', default=None,
                          help='Analysis period (e.g. -1h, -30m, -1d, default: -1h)')
-    p_check.add_argument('--start', help='Start time (overrides --period)')
-    p_check.add_argument('--end', help='End time (default: now, overrides --period)')
-    p_check.add_argument('--compare-with',
+    p_check.add_argument('--start', default=None, help='Start time (overrides --period)')
+    p_check.add_argument('--end', default=None, help='End time (default: now, overrides --period)')
+    p_check.add_argument('--compare-with', default=None,
                          help='Compare period, e.g. "-2h,-1h" or single offset for same duration as current period')
     p_check.add_argument('--include-no-ts', action='store_true',
                          help='Include entries without a valid timestamp')
-    p_check.add_argument('--level', help='Log level filter')
-    p_check.add_argument('--keyword', help='Keyword filter')
+    p_check.add_argument('--level', default=None, help='Log level filter')
+    p_check.add_argument('--keyword', default=None, help='Keyword filter')
     p_check.add_argument('--mask', help='Comma-separated sensitive field names to mask')
     p_check.add_argument('--alert', action='store_true',
                          help='Enable alert summary (aggregated by service/host/error code)')
@@ -1668,6 +1855,7 @@ def build_parser():
     p_check.add_argument('--output-dir', help='Output directory for reports')
     p_check.add_argument('--rules', help='Rules file path')
     p_check.add_argument('--use-rule', help='Apply a saved rule by name')
+    p_check.add_argument('--history', help='History archive file path (default: ~/.logscope_history.json)')
 
     # --- scan ---
     p_scan = sub.add_parser('scan', help='Scan log directory and list files with stats')
@@ -1779,6 +1967,18 @@ def build_parser():
         p.add_argument('-f', '--force', action='store_true',
                        help='Force delete without confirmation')
 
+    # --- history ---
+    p_history = sub.add_parser('history', help='View check inspection history')
+    p_history.add_argument('--status', help='Filter by status (OK or WARN)')
+    p_history.add_argument('--service', help='Filter by service name')
+    p_history.add_argument('--error-code', help='Filter by error code')
+    p_history.add_argument('--last', type=int, help='Show last N records')
+    p_history.add_argument('--trend', action='store_true',
+                           help='Show error and new-alert trend across records')
+    p_history.add_argument('--json', action='store_true', help='Output as JSON')
+    p_history.add_argument('--output', help='Save JSON output to file')
+    p_history.add_argument('--history', help='History archive file path (default: ~/.logscope_history.json)')
+
     return parser
 
 
@@ -1796,6 +1996,7 @@ def main():
         'stat': cmd_stat,
         'diff': cmd_diff,
         'report': cmd_report,
+        'history': cmd_history,
         'list-rules': cmd_list_rules,
         'list-rule': cmd_list_rules,
         'show-rule': cmd_show_rule,

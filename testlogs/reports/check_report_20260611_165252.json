@@ -1,0 +1,83 @@
+{
+  "check_timestamp": "2026-06-11 16:52:52",
+  "directory": "d:\\TraeProjects\\1046\\testlogs",
+  "pattern": "*.log",
+  "files_scanned": 2,
+  "period": {
+    "current_start": "2026-06-10 09:00:00",
+    "current_end": "2026-06-10 12:00:00",
+    "compare_start": "2026-06-10 06:00:00",
+    "compare_end": "2026-06-10 09:00:00"
+  },
+  "summary": {
+    "total_entries": 19,
+    "error_count": 14,
+    "warning_count": 5,
+    "compare_error_count": 8,
+    "error_delta": 6,
+    "error_change": "+75.0%"
+  },
+  "level_distribution": {
+    "ERROR": 14,
+    "WARN": 5
+  },
+  "error_code_ranking": [
+    {
+      "code": "504",
+      "count": 5
+    },
+    {
+      "code": "507",
+      "count": 3
+    },
+    {
+      "code": "401",
+      "count": 2
+    },
+    {
+      "code": "400",
+      "count": 2
+    },
+    {
+      "code": "503",
+      "count": 2
+    }
+  ],
+  "alert_summary": {
+    "group_by": "service,code",
+    "total_errors": 14,
+    "distinct_groups": 5,
+    "top_items": [
+      {
+        "service": "gateway-service",
+        "code": "504",
+        "count": 5
+      },
+      {
+        "service": "storage-service",
+        "code": "507",
+        "count": 3
+      },
+      {
+        "service": "auth-service",
+        "code": "401",
+        "count": 2
+      },
+      {
+        "service": "config-service",
+        "code": "400",
+        "count": 2
+      },
+      {
+        "service": "message-service",
+        "code": "503",
+        "count": 2
+      }
+    ],
+    "_meta": {
+      "total_entries": 19,
+      "timestamped_entries": 19
+    }
+  },
+  "spike_windows": []
+}
