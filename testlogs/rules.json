@@ -1,0 +1,12 @@
+{
+  "daily-error": {
+    "level": "ERROR",
+    "pattern": "*.log"
+  },
+  "morning-check": {
+    "start": "2026-06-10 09:00:00",
+    "end": "2026-06-10 12:00:00",
+    "level": "ERROR,WARN",
+    "pattern": "*.log"
+  }
+}
