@@ -1263,13 +1263,62 @@ def cmd_report(args):
             lines.append('No error entries with timestamps for spike detection.')
         lines.append('')
 
+    history_file_arg = getattr(args, 'history', None)
+    history_n = getattr(args, 'history_n', 10) or 10
+    if history_file_arg:
+        hist_records = load_history(history_file_arg)
+        if hist_records:
+            recent = hist_records[-history_n:]
+            lines.append('## Historical Check Trend')
+            lines.append('')
+            lines.append(f'Source: `{history_file_arg}` (last {len(recent)} checks)')
+            lines.append('')
+            errors_list = [r.get('error_count', 0) for r in recent]
+            cur_error_count = sum(1 for e in entries if e.level in ('ERROR', 'FATAL', 'CRITICAL'))
+            avg_err = sum(errors_list) / len(errors_list) if errors_list else 0
+            max_err = max(errors_list) if errors_list else 0
+            warning_flag = ''
+            if len(errors_list) >= 3 and cur_error_count > max_err:
+                warning_flag = ' ⚠️ **HIGHEST IN RECENT HISTORY**'
+            elif cur_error_count > avg_err * 1.5 and avg_err > 0:
+                warning_flag = ' ⚠️ **1.5x ABOVE RECENT AVERAGE**'
+            elif cur_error_count > avg_err * 1.2 and avg_err > 0:
+                warning_flag = ' ⚠️ Above recent average'
+            lines.append(f'Current report errors: **{cur_error_count}** vs. avg {avg_err:.1f}, max {max_err}{warning_flag}')
+            lines.append('')
+            lines.append('| # | Timestamp | Status | Errors | Delta | New Alerts | Spikes |')
+            lines.append('|---|-----------|--------|--------|-------|------------|--------|')
+            for i, r in enumerate(recent, 1):
+                err_c = r.get('error_count', 0)
+                delta = r.get('error_delta', 0)
+                new_a = r.get('new_alerts', 0)
+                sp_c = r.get('spike_count', 0)
+                st = r.get('status', '-')
+                if st == 'WARN':
+                    st_cell = '🔴 WARN'
+                else:
+                    st_cell = '🟢 OK'
+                lines.append(f'| {i} | {r.get("timestamp", "-")} | {st_cell} | {err_c} | {delta:+d} | {new_a} | {sp_c} |')
+            if len(errors_list) >= 3:
+                lines.append('')
+                lines.append(f"**Stats across last {len(errors_list)} checks:** avg={avg_err:.1f}, min={min(errors_list)}, max={max_err}")
+                if cur_error_count > avg_err * 1.2 and avg_err > 0:
+                    lines.append('')
+                    lines.append('> **Anomaly Detected** : 当前报告的错误数量明显高于历史平均水平，建议立即排查。')
+            lines.append('')
+
     if getattr(args, 'save_rule', None):
         rule_name = args.save_rule
         rule_data = {}
-        for key in ('start', 'end', 'level', 'keyword', 'mask', 'pattern'):
+        for key in ('start', 'end', 'level', 'keyword', 'mask', 'pattern',
+                    'baseline', 'alert_group_by'):
             val = getattr(args, key, '')
             if val:
                 rule_data[key] = val
+        if getattr(args, 'rule_description', None):
+            rule_data['description'] = args.rule_description
+        if getattr(args, 'rule_output_dir', None):
+            rule_data['output_dir'] = args.rule_output_dir
         if rule_name in rules and not getattr(args, 'force', False):
             if not confirm_prompt(f"Rule '{rule_name}' already exists. Overwrite?"):
                 print("Save cancelled.", file=sys.stderr)
@@ -1359,6 +1408,76 @@ def cmd_history(args):
         print(f"No check history found in {history_path}")
         return
 
+    detail_idx = getattr(args, 'detail', None)
+    if detail_idx is not None:
+        if detail_idx < 1 or detail_idx > len(records):
+            print(f"[ERROR] --detail index out of range (1 to {len(records)})", file=sys.stderr)
+            sys.exit(1)
+        rec = records[detail_idx - 1]
+        snapshot = rec.get('snapshot', {})
+        print(f"=== Check Record #{detail_idx} Detail ===")
+        print(f"  Timestamp : {rec.get('timestamp', '-')}")
+        print(f"  Status    : {rec.get('status', '-')}")
+        print(f"  Period    : {rec.get('period_start', '-')} ~ {rec.get('period_end', '-')}")
+        print(f"  Directory : {rec.get('directory', '-')}")
+        print(f"  Errors    : {rec.get('error_count', 0)} ({rec.get('error_change', '0%')}, delta={rec.get('error_delta', 0):+d})")
+        print(f"  New Alerts: {rec.get('new_alerts', 0)}")
+        print(f"  Services  : {', '.join(rec.get('services', [])) or '-'}")
+        print(f"  ErrorCodes: {', '.join(rec.get('error_codes', [])) or '-'}")
+        if rec.get('reasons'):
+            print(f"  Reasons   : {', '.join(rec['reasons'])}")
+        print(f"  JSON Report: {rec.get('json_report', '-')}")
+        print(f"  MD Report  : {rec.get('md_report', '-')}")
+        print()
+
+        if snapshot.get('top_codes'):
+            print("=== Top Error Codes ===")
+            headers = ['ErrorCode', 'Count']
+            rows = [[t['code'], str(t['count'])] for t in snapshot['top_codes']]
+            print(format_table(headers, rows))
+            print()
+        if snapshot.get('top_services'):
+            print("=== Top Services ===")
+            headers = ['Service', 'Count']
+            rows = [[t['service'], str(t['count'])] for t in snapshot['top_services']]
+            print(format_table(headers, rows))
+            print()
+        if snapshot.get('alert_rows'):
+            print("=== Top Alert Groups ===")
+            ar = snapshot['alert_rows']
+            keys = [k for k in ar[0].keys() if k != 'count']
+            headers = keys + ['Count']
+            rows = [[str(r.get(k, '-')) for k in keys] + [str(r['count'])] for r in ar]
+            print(format_table(headers, rows))
+            print()
+        if snapshot.get('top_growth'):
+            print("=== Top Growth ===")
+            tg = snapshot['top_growth']
+            keys = [k for k in tg[0].keys() if k not in ('baseline_count', 'current_count', 'delta', 'growth_rate')]
+            headers = keys + ['Baseline', 'Current', 'Delta', 'Growth%']
+            rows = []
+            for g in tg:
+                rate = 'INF%' if g.get('growth_rate') is None else f"{g['growth_rate']:+.1f}%"
+                rows.append([str(g.get(k, '-')) for k in keys] +
+                            [str(g.get('baseline_count', 0)), str(g.get('current_count', 0)),
+                             f"{g.get('delta', 0):+d}", rate])
+            print(format_table(headers, rows))
+            print()
+        if snapshot.get('new_items'):
+            print("=== New Alert Combinations ===")
+            ni = snapshot['new_items']
+            keys = [k for k in ni[0].keys() if k != 'count']
+            headers = keys + ['Count']
+            rows = [[str(r.get(k, '-')) for k in keys] + [str(r['count'])] for r in ni]
+            print(format_table(headers, rows))
+            print()
+        if not snapshot:
+            print("[No snapshot data - this record was archived before v1.3.0]")
+        return
+
+    summary_mode = getattr(args, 'summary', False)
+    summary_days = getattr(args, 'days', 30) or 30
+
     status_filter = getattr(args, 'status', None)
     service_filter = getattr(args, 'service', None)
     code_filter = getattr(args, 'error_code', None)
@@ -1383,7 +1502,9 @@ def cmd_history(args):
         print("No matching records found.")
         return
 
-    if json_output:
+    if summary_mode:
+        pass  # summary mode processes later (uses full records), skip default list output
+    elif json_output:
         data = {
             'total_records': len(filtered),
             'history_file': history_path,
@@ -1397,59 +1518,142 @@ def cmd_history(args):
         else:
             print(json.dumps(data, indent=2, ensure_ascii=False))
         return
+    else:
+        print(f"Check History ({len(filtered)} records from {history_path})")
+        print()
 
-    print(f"Check History ({len(filtered)} records from {history_path})")
-    print()
-
-    headers = ['#', 'Timestamp', 'Status', 'Errors', 'Delta', 'New', 'Svc', 'Codes', 'Report']
-    rows = []
-    for i, r in enumerate(filtered, 1):
-        svc_count = len(r.get('services', []))
-        codes_str = ','.join(r.get('error_codes', [])[:3])
-        if len(r.get('error_codes', [])) > 3:
-            codes_str += '...'
-        report_name = os.path.basename(r.get('json_report', '-'))
-        rows.append([
-            str(i),
-            r.get('timestamp', '-'),
-            r.get('status', '-'),
-            str(r.get('error_count', 0)),
-            f"{r.get('error_delta', 0):+d}",
-            str(r.get('new_alerts', 0)),
-            str(svc_count),
-            codes_str or '-',
-            report_name,
-        ])
-    print(format_table(headers, rows))
-
-    if getattr(args, 'trend', False) and len(filtered) >= 2:
-        print("\n=== Error Trend ===")
-        trend_headers = ['Timestamp', 'Errors', 'Delta', 'Change', 'New Alerts', 'Spikes']
-        trend_rows = []
-        for r in filtered:
-            trend_rows.append([
+        headers = ['#', 'Timestamp', 'Status', 'Errors', 'Delta', 'New', 'Svc', 'Codes', 'Report']
+        rows = []
+        for i, r in enumerate(filtered, 1):
+            svc_count = len(r.get('services', []))
+            codes_str = ','.join(r.get('error_codes', [])[:3])
+            if len(r.get('error_codes', [])) > 3:
+                codes_str += '...'
+            report_name = os.path.basename(r.get('json_report', '-'))
+            rows.append([
+                str(i),
                 r.get('timestamp', '-'),
+                r.get('status', '-'),
                 str(r.get('error_count', 0)),
                 f"{r.get('error_delta', 0):+d}",
-                r.get('error_change', '0%'),
                 str(r.get('new_alerts', 0)),
-                str(r.get('spike_count', 0)),
+                str(svc_count),
+                codes_str or '-',
+                report_name,
             ])
-        print(format_table(trend_headers, trend_rows))
+        print(format_table(headers, rows))
 
-        if len(filtered) >= 3:
-            errors_list = [r.get('error_count', 0) for r in filtered]
-            avg_err = sum(errors_list) / len(errors_list)
-            max_err = max(errors_list)
-            min_err = min(errors_list)
-            new_alerts_list = [r.get('new_alerts', 0) for r in filtered]
-            total_new = sum(new_alerts_list)
-            warn_count = sum(1 for r in filtered if r.get('status', '') == 'WARN')
-            ok_count = sum(1 for r in filtered if r.get('status', '') == 'OK')
-            print(f"\nStats across {len(filtered)} checks:")
-            print(f"  Errors   : avg={avg_err:.1f}, min={min_err}, max={max_err}")
-            print(f"  Status   : {ok_count} OK, {warn_count} WARN")
-            print(f"  New alerts total: {total_new}")
+        if getattr(args, 'trend', False) and len(filtered) >= 2:
+            print("\n=== Error Trend ===")
+            trend_headers = ['Timestamp', 'Errors', 'Delta', 'Change', 'New Alerts', 'Spikes']
+            trend_rows = []
+            for r in filtered:
+                trend_rows.append([
+                    r.get('timestamp', '-'),
+                    str(r.get('error_count', 0)),
+                    f"{r.get('error_delta', 0):+d}",
+                    r.get('error_change', '0%'),
+                    str(r.get('new_alerts', 0)),
+                    str(r.get('spike_count', 0)),
+                ])
+            print(format_table(trend_headers, trend_rows))
+
+            if len(filtered) >= 3:
+                errors_list = [r.get('error_count', 0) for r in filtered]
+                avg_err = sum(errors_list) / len(errors_list)
+                max_err = max(errors_list)
+                min_err = min(errors_list)
+                new_alerts_list = [r.get('new_alerts', 0) for r in filtered]
+                total_new = sum(new_alerts_list)
+                warn_count = sum(1 for r in filtered if r.get('status', '') == 'WARN')
+                ok_count = sum(1 for r in filtered if r.get('status', '') == 'OK')
+                print(f"\nStats across {len(filtered)} checks:")
+                print(f"  Errors   : avg={avg_err:.1f}, min={min_err}, max={max_err}")
+                print(f"  Status   : {ok_count} OK, {warn_count} WARN")
+                print(f"  New alerts total: {total_new}")
+
+    if summary_mode:
+        today = datetime.now().date()
+        cutoff = today - timedelta(days=summary_days - 1)
+        date_records = {}
+        for r in records:
+            r_date_str = r.get('date', '')
+            try:
+                r_date = datetime.strptime(r_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                continue
+            if r_date < cutoff or r_date > today:
+                continue
+            if r_date_str not in date_records:
+                date_records[r_date_str] = []
+            date_records[r_date_str].append(r)
+
+        daily_rows = []
+        total_checks = 0
+        total_ok = 0
+        total_warn = 0
+        total_errs = 0
+        total_new = 0
+        for d in sorted(date_records.keys()):
+            recs = date_records[d]
+            checks = len(recs)
+            ok_n = sum(1 for r in recs if r.get('status', '') == 'OK')
+            wn_n = sum(1 for r in recs if r.get('status', '') == 'WARN')
+            errs = sum(r.get('error_count', 0) for r in recs)
+            new_combos = sum(r.get('new_alerts', 0) for r in recs)
+            total_checks += checks
+            total_ok += ok_n
+            total_warn += wn_n
+            total_errs += errs
+            total_new += new_combos
+            spike_c = sum(r.get('spike_count', 0) for r in recs)
+            daily_rows.append([d, str(checks), str(ok_n), str(wn_n),
+                               str(errs), str(new_combos), str(spike_c)])
+
+        if not date_records:
+            print(f"\nNo check records in the last {summary_days} days.")
+            return
+
+        summary_header = ['Date', 'Checks', 'OK', 'WARN', 'Errors', 'NewCombos', 'Spikes']
+
+        if json_output:
+            data = {
+                'summary_days': summary_days,
+                'cutoff_date': cutoff.strftime('%Y-%m-%d'),
+                'today': today.strftime('%Y-%m-%d'),
+                'totals': {
+                    'total_checks': total_checks,
+                    'total_ok': total_ok,
+                    'total_warn': total_warn,
+                    'total_errors': total_errs,
+                    'total_new_combos': total_new,
+                },
+                'daily': [],
+            }
+            for row in daily_rows:
+                data['daily'].append({
+                    'date': row[0], 'checks': int(row[1]), 'ok': int(row[2]),
+                    'warn': int(row[3]), 'errors': int(row[4]),
+                    'new_combos': int(row[5]), 'spikes': int(row[6]),
+                })
+            output_path = getattr(args, 'output', None)
+            if output_path:
+                with open(output_path, 'w', encoding='utf-8') as fh:
+                    json.dump(data, fh, indent=2, ensure_ascii=False)
+                print(f"Summary JSON saved to {output_path}")
+            else:
+                print(json.dumps(data, indent=2, ensure_ascii=False))
+            return
+
+        print(f"\n=== Check Summary (last {summary_days} days, {cutoff} ~ {today}) ===")
+        print()
+        print(format_table(summary_header, daily_rows))
+        print()
+        print(f"Totals across {len(date_records)} days:")
+        print(f"  Checks       : {total_checks}")
+        print(f"  Status       : {total_ok} OK, {total_warn} WARN")
+        print(f"  Errors       : {total_errs}")
+        print(f"  New Combos   : {total_new}")
 
 
 def cmd_check(args):
@@ -1787,6 +1991,57 @@ def cmd_check(args):
     print(f"Markdown Report : {md_report_path}")
     print("=" * 60)
 
+    snapshot = {}
+    if alert['rows']:
+        top_codes = []
+        top_services = []
+        for row in alert['rows'][:10]:
+            key_parts = row[:-1]
+            count = int(row[-1])
+            if 'code' in alert_group_by.lower() or 'error_code' in alert_group_by.lower():
+                for k in key_parts:
+                    if k and k.startswith(('E', '5', '4', 'ERR', 'SYS')) and len(k) <= 10:
+                        top_codes.append({'code': k, 'count': count})
+                        break
+            if 'service' in alert_group_by.lower() or 'svc' in alert_group_by.lower():
+                for k in key_parts:
+                    if k and ('service' in k.lower() or 'svc' in k.lower() or k and '-' in k and len(k) <= 30):
+                        top_services.append({'service': k, 'count': count})
+                        break
+        code_counter = Counter()
+        service_counter = Counter()
+        for e in current_entries:
+            if e.error_code:
+                code_counter[e.error_code] += 1
+            if e.service:
+                service_counter[e.service] += 1
+        top_codes = [{'code': c, 'count': n} for c, n in code_counter.most_common(10)]
+        top_services = [{'service': s, 'count': n} for s, n in service_counter.most_common(10)]
+        snapshot['top_codes'] = top_codes
+        snapshot['top_services'] = top_services
+        snapshot['alert_rows'] = [
+            {ck: row[i] for i, ck in enumerate(alert['headers'][:-1])} | {'count': int(row[-1])}
+            for row in alert['rows'][:10]
+        ]
+    if comparison and comparison.get('baseline_available'):
+        canonical_keys = comparison.get('canonical_keys',
+                                        [g.strip().lower() for g in alert_group_by.split(',')])
+        snapshot['top_growth'] = []
+        for item, base_cnt, cur_cnt, delta, rate in comparison['top_growth'][:10]:
+            growth_entry = {ck: _item_get(item, ck) for ck in canonical_keys}
+            growth_entry.update({
+                'baseline_count': base_cnt,
+                'current_count': cur_cnt,
+                'delta': delta,
+                'growth_rate': None if rate == float('inf') else round(rate, 2),
+            })
+            snapshot['top_growth'].append(growth_entry)
+        snapshot['new_items'] = []
+        for item, cnt in comparison['new_items'][:10]:
+            entry = {ck: _item_get(item, ck) for ck in canonical_keys}
+            entry['count'] = cnt
+            snapshot['new_items'].append(entry)
+
     history_record = {
         'timestamp': now.strftime('%Y-%m-%d %H:%M:%S'),
         'date': now.strftime('%Y-%m-%d'),
@@ -1808,6 +2063,8 @@ def cmd_check(args):
         'json_report': json_report_path,
         'md_report': md_report_path,
     }
+    if snapshot:
+        history_record['snapshot'] = snapshot
     if status_reasons:
         history_record['reasons'] = status_reasons
 
@@ -1945,8 +2202,15 @@ def build_parser():
     p_report.add_argument('--rules', help='Rules file path')
     p_report.add_argument('--use-rule', help='Apply a saved rule by name')
     p_report.add_argument('--save-rule', help='Save current filters as a named rule')
+    p_report.add_argument('--rule-description', default=None,
+                          help='Description to attach when using --save-rule')
+    p_report.add_argument('--rule-output-dir', default=None,
+                          help='Default output directory to attach when using --save-rule')
     p_report.add_argument('-f', '--force', action='store_true',
                           help='Force overwrite existing rule without confirmation')
+    p_report.add_argument('--history', help='History archive file path for trend section')
+    p_report.add_argument('--history-n', type=int, default=10,
+                          help='Number of recent checks for trend section (default: 10)')
 
     # --- list-rules / list-rule (aliases) ---
     for cmd_name in ('list-rules', 'list-rule'):
@@ -1978,6 +2242,12 @@ def build_parser():
     p_history.add_argument('--json', action='store_true', help='Output as JSON')
     p_history.add_argument('--output', help='Save JSON output to file')
     p_history.add_argument('--history', help='History archive file path (default: ~/.logscope_history.json)')
+    p_history.add_argument('--summary', action='store_true',
+                           help='Show aggregated summary by day (use --days to set rolling window)')
+    p_history.add_argument('--days', type=int, default=30,
+                           help='Rolling window for --summary in days (default: 30, common: 7, 30)')
+    p_history.add_argument('--detail', type=int,
+                           help='Expand snapshot of a specific record index (1-based, e.g. --detail 1)')
 
     return parser
 

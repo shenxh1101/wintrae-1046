@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": "2026-06-11 16:51:42",
+    "timestamp": "2026-06-11 17:06:44",
     "date": "2026-06-11",
     "status": "WARN",
     "directory": "d:\\TraeProjects\\1046\\testlogs",
@@ -28,15 +28,153 @@
       "504",
       "507"
     ],
-    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165142.json",
-    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165142.md",
+    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_170644.json",
+    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_170644.md",
+    "snapshot": {
+      "top_codes": [
+        {
+          "code": "504",
+          "count": 3
+        },
+        {
+          "code": "507",
+          "count": 2
+        },
+        {
+          "code": "503",
+          "count": 2
+        },
+        {
+          "code": "400",
+          "count": 1
+        }
+      ],
+      "top_services": [
+        {
+          "service": "gateway-service",
+          "count": 4
+        },
+        {
+          "service": "storage-service",
+          "count": 2
+        },
+        {
+          "service": "config-service",
+          "count": 2
+        },
+        {
+          "service": "message-service",
+          "count": 2
+        },
+        {
+          "service": "order-service",
+          "count": 1
+        }
+      ],
+      "alert_rows": [
+        {
+          "Service": "gateway-service",
+          "Host": "gw-01",
+          "ErrorCode": "504",
+          "count": 3
+        },
+        {
+          "Service": "message-service",
+          "Host": "msg-01",
+          "ErrorCode": "503",
+          "count": 2
+        },
+        {
+          "Service": "storage-service",
+          "Host": "store-01",
+          "ErrorCode": "507",
+          "count": 1
+        },
+        {
+          "Service": "storage-service",
+          "Host": "store-02",
+          "ErrorCode": "507",
+          "count": 1
+        },
+        {
+          "Service": "config-service",
+          "Host": "cfg-01",
+          "ErrorCode": "400",
+          "count": 1
+        }
+      ],
+      "top_growth": [
+        {
+          "service": "gateway-service",
+          "host": "gw-01",
+          "code": "504",
+          "baseline_count": 0,
+          "current_count": 3,
+          "delta": 3,
+          "growth_rate": null
+        },
+        {
+          "service": "message-service",
+          "host": "msg-01",
+          "code": "503",
+          "baseline_count": 0,
+          "current_count": 2,
+          "delta": 2,
+          "growth_rate": null
+        },
+        {
+          "service": "storage-service",
+          "host": "store-02",
+          "code": "507",
+          "baseline_count": 0,
+          "current_count": 1,
+          "delta": 1,
+          "growth_rate": null
+        },
+        {
+          "service": "config-service",
+          "host": "cfg-01",
+          "code": "400",
+          "baseline_count": 0,
+          "current_count": 1,
+          "delta": 1,
+          "growth_rate": null
+        }
+      ],
+      "new_items": [
+        {
+          "service": "gateway-service",
+          "host": "gw-01",
+          "code": "504",
+          "count": 3
+        },
+        {
+          "service": "message-service",
+          "host": "msg-01",
+          "code": "503",
+          "count": 2
+        },
+        {
+          "service": "storage-service",
+          "host": "store-02",
+          "code": "507",
+          "count": 1
+        },
+        {
+          "service": "config-service",
+          "host": "cfg-01",
+          "code": "400",
+          "count": 1
+        }
+      ]
+    },
     "reasons": [
       "Errors increased by 2",
       "4 new alert combinations"
     ]
   },
   {
-    "timestamp": "2026-06-11 16:52:00",
+    "timestamp": "2026-06-11 17:07:02",
     "date": "2026-06-11",
     "status": "WARN",
     "directory": "d:\\TraeProjects\\1046\\testlogs",
@@ -64,60 +202,103 @@
       "503",
       "507"
     ],
-    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165200.json",
-    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165200.md",
+    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_170702.json",
+    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_170702.md",
+    "snapshot": {
+      "top_codes": [
+        {
+          "code": "500",
+          "count": 7
+        },
+        {
+          "code": "503",
+          "count": 4
+        },
+        {
+          "code": "401",
+          "count": 2
+        },
+        {
+          "code": "507",
+          "count": 1
+        }
+      ],
+      "top_services": [
+        {
+          "service": "order-service",
+          "count": 12
+        },
+        {
+          "service": "payment-service",
+          "count": 11
+        },
+        {
+          "service": "auth-service",
+          "count": 4
+        },
+        {
+          "service": "user-service",
+          "count": 3
+        },
+        {
+          "service": "storage-service",
+          "count": 1
+        }
+      ],
+      "alert_rows": [
+        {
+          "Service": "order-service",
+          "Host": "web-01",
+          "ErrorCode": "500",
+          "count": 4
+        },
+        {
+          "Service": "payment-service",
+          "Host": "pay-01",
+          "ErrorCode": "500",
+          "count": 3
+        },
+        {
+          "Service": "payment-service",
+          "Host": "pay-02",
+          "ErrorCode": "503",
+          "count": 2
+        },
+        {
+          "Service": "payment-service",
+          "Host": "pay-01",
+          "ErrorCode": "503",
+          "count": 2
+        },
+        {
+          "Service": "auth-service",
+          "Host": "auth-01",
+          "ErrorCode": "401",
+          "count": 2
+        },
+        {
+          "Service": "storage-service",
+          "Host": "store-01",
+          "ErrorCode": "507",
+          "count": 1
+        }
+      ]
+    },
     "reasons": [
       "Errors increased by 14"
     ]
   },
   {
-    "timestamp": "2026-06-11 16:52:52",
-    "date": "2026-06-11",
-    "status": "WARN",
-    "directory": "d:\\TraeProjects\\1046\\testlogs",
-    "pattern": "*.log",
-    "period_start": "2026-06-10 09:00:00",
-    "period_end": "2026-06-10 12:00:00",
-    "total_entries": 19,
-    "error_count": 14,
-    "warning_count": 5,
-    "error_delta": 6,
-    "error_change": "+75.0%",
-    "new_alerts": 0,
-    "top_growth_count": 0,
-    "spike_count": 0,
-    "services": [
-      "auth-service",
-      "config-service",
-      "gateway-service",
-      "message-service",
-      "order-service",
-      "storage-service"
-    ],
-    "error_codes": [
-      "400",
-      "401",
-      "503",
-      "504",
-      "507"
-    ],
-    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165252.json",
-    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165252.md",
-    "reasons": [
-      "Errors increased by 6"
-    ]
-  },
-  {
-    "timestamp": "2026-06-11 16:53:25",
+    "timestamp": "2026-06-11 17:11:11",
     "date": "2026-06-11",
     "status": "WARN",
     "directory": "d:\\TraeProjects\\1046\\testlogs",
     "pattern": "*.log",
     "period_start": "2026-06-10 10:00:00",
     "period_end": "2026-06-10 12:00:00",
-    "total_entries": 15,
+    "total_entries": 12,
     "error_count": 12,
-    "warning_count": 3,
+    "warning_count": 0,
     "error_delta": 1,
     "error_change": "+9.1%",
     "new_alerts": 0,
@@ -127,7 +308,6 @@
       "config-service",
       "gateway-service",
       "message-service",
-      "order-service",
       "storage-service"
     ],
     "error_codes": [
@@ -136,8 +316,162 @@
       "504",
       "507"
     ],
-    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165325.json",
-    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports\\check_report_20260611_165325.md",
+    "json_report": "d:/TraeProjects/1046/testlogs/reports\\check_report_20260611_171111.json",
+    "md_report": "d:/TraeProjects/1046/testlogs/reports\\check_report_20260611_171111.md",
+    "snapshot": {
+      "top_codes": [
+        {
+          "code": "504",
+          "count": 5
+        },
+        {
+          "code": "507",
+          "count": 3
+        },
+        {
+          "code": "400",
+          "count": 2
+        },
+        {
+          "code": "503",
+          "count": 2
+        }
+      ],
+      "top_services": [
+        {
+          "service": "gateway-service",
+          "count": 5
+        },
+        {
+          "service": "storage-service",
+          "count": 3
+        },
+        {
+          "service": "config-service",
+          "count": 2
+        },
+        {
+          "service": "message-service",
+          "count": 2
+        }
+      ],
+      "alert_rows": [
+        {
+          "Service": "gateway-service",
+          "ErrorCode": "504",
+          "count": 5
+        },
+        {
+          "Service": "storage-service",
+          "ErrorCode": "507",
+          "count": 3
+        },
+        {
+          "Service": "config-service",
+          "ErrorCode": "400",
+          "count": 2
+        },
+        {
+          "Service": "message-service",
+          "ErrorCode": "503",
+          "count": 2
+        }
+      ]
+    },
+    "reasons": [
+      "Errors increased by 1"
+    ]
+  },
+  {
+    "timestamp": "2026-06-11 17:11:28",
+    "date": "2026-06-11",
+    "status": "WARN",
+    "directory": "d:\\TraeProjects\\1046\\testlogs",
+    "pattern": "*.log",
+    "period_start": "2026-06-10 10:00:00",
+    "period_end": "2026-06-10 12:00:00",
+    "total_entries": 12,
+    "error_count": 12,
+    "warning_count": 0,
+    "error_delta": 1,
+    "error_change": "+9.1%",
+    "new_alerts": 0,
+    "top_growth_count": 0,
+    "spike_count": 0,
+    "services": [
+      "config-service",
+      "gateway-service",
+      "message-service",
+      "storage-service"
+    ],
+    "error_codes": [
+      "400",
+      "503",
+      "504",
+      "507"
+    ],
+    "json_report": "d:\\TraeProjects\\1046\\testlogs\\reports_override\\check_report_20260611_171128.json",
+    "md_report": "d:\\TraeProjects\\1046\\testlogs\\reports_override\\check_report_20260611_171128.md",
+    "snapshot": {
+      "top_codes": [
+        {
+          "code": "504",
+          "count": 5
+        },
+        {
+          "code": "507",
+          "count": 3
+        },
+        {
+          "code": "400",
+          "count": 2
+        },
+        {
+          "code": "503",
+          "count": 2
+        }
+      ],
+      "top_services": [
+        {
+          "service": "gateway-service",
+          "count": 5
+        },
+        {
+          "service": "storage-service",
+          "count": 3
+        },
+        {
+          "service": "config-service",
+          "count": 2
+        },
+        {
+          "service": "message-service",
+          "count": 2
+        }
+      ],
+      "alert_rows": [
+        {
+          "Service": "gateway-service",
+          "ErrorCode": "504",
+          "count": 5
+        },
+        {
+          "Service": "storage-service",
+          "ErrorCode": "507",
+          "count": 3
+        },
+        {
+          "Service": "config-service",
+          "ErrorCode": "400",
+          "count": 2
+        },
+        {
+          "Service": "message-service",
+          "ErrorCode": "503",
+          "count": 2
+        }
+      ]
+    },
     "reasons": [
       "Errors increased by 1"
     ]

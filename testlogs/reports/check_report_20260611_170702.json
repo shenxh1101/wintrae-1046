@@ -1,0 +1,108 @@
+{
+  "check_timestamp": "2026-06-11 17:07:02",
+  "directory": "d:\\TraeProjects\\1046\\testlogs",
+  "pattern": "*.log",
+  "files_scanned": 2,
+  "period": {
+    "current_start": "2026-06-10 08:00:00",
+    "current_end": "2026-06-10 10:00:00",
+    "compare_start": "2026-06-10 06:00:00",
+    "compare_end": "2026-06-10 08:00:00"
+  },
+  "summary": {
+    "total_entries": 31,
+    "error_count": 14,
+    "warning_count": 5,
+    "compare_error_count": 0,
+    "error_delta": 14,
+    "error_change": "+NEW"
+  },
+  "level_distribution": {
+    "INFO": 12,
+    "WARN": 5,
+    "ERROR": 11,
+    "FATAL": 3
+  },
+  "error_code_ranking": [
+    {
+      "code": "500",
+      "count": 7
+    },
+    {
+      "code": "503",
+      "count": 4
+    },
+    {
+      "code": "401",
+      "count": 2
+    },
+    {
+      "code": "507",
+      "count": 1
+    }
+  ],
+  "alert_summary": {
+    "group_by": "service,host,code",
+    "total_errors": 14,
+    "distinct_groups": 6,
+    "top_items": [
+      {
+        "service": "order-service",
+        "host": "web-01",
+        "code": "500",
+        "count": 4
+      },
+      {
+        "service": "payment-service",
+        "host": "pay-01",
+        "code": "500",
+        "count": 3
+      },
+      {
+        "service": "payment-service",
+        "host": "pay-02",
+        "code": "503",
+        "count": 2
+      },
+      {
+        "service": "payment-service",
+        "host": "pay-01",
+        "code": "503",
+        "count": 2
+      },
+      {
+        "service": "auth-service",
+        "host": "auth-01",
+        "code": "401",
+        "count": 2
+      },
+      {
+        "service": "storage-service",
+        "host": "store-01",
+        "code": "507",
+        "count": 1
+      }
+    ],
+    "_meta": {
+      "total_entries": 31,
+      "timestamped_entries": 31
+    }
+  },
+  "spike_windows": [
+    {
+      "time": "2026-06-10 08:00",
+      "count": 8,
+      "is_spike": false
+    },
+    {
+      "time": "2026-06-10 09:00",
+      "count": 5,
+      "is_spike": false
+    },
+    {
+      "time": "2026-06-10 10:00",
+      "count": 1,
+      "is_spike": false
+    }
+  ]
+}
